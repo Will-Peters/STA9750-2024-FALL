@@ -1,2 +1,3 @@
-# STA9750-2024-FALL
-Projects from STA9750 - FALL 2024
+Submission materials for STA9750 at Baruch College. 
+
+Owner: Will Peters
