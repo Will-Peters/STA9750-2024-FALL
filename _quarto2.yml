@@ -1,0 +1,17 @@
+project:
+  type: website
+  output-dir: docs
+
+website:
+  title: "Will Peters STA9750-2024-FALL MP01"
+  description:
+    Course Projects for STA 9750 at Baruch College
+  site-url: "https://Will-Peters.github.io/STA9750-2024-FALL-MP01/"
+  navbar:
+    background: primary
+    search: false
+    
+format:
+  html:
+    theme: sandstone
+    toc: false
