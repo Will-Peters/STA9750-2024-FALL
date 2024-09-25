@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Will Peters STA9750-2024-FALL – STA 9750 2024 Submission Material</title>
+<title>Will Peters STA9750-2024-FALL MP01 – STA 9750 2024 Submission Material MP 01</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -78,7 +78,7 @@ ul.task-list li input[type="checkbox"] {
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
     <a class="navbar-brand" href="./index.html">
-    <span class="navbar-title">STA 9750 2024 Submission Material</span>
+    <span class="navbar-title">STA 9750 2024 Submission Material MP 01</span>
     </a>
   </div>
         <div class="quarto-navbar-tools tools-end">
@@ -97,7 +97,7 @@ ul.task-list li input[type="checkbox"] {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Will Peters STA9750-2024-FALL</h1>
+<h1 class="title">Will Peters STA9750-2024-FALL MP01</h1>
 </div>
 
 
@@ -114,12 +114,205 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<p>Hello,</p>
-<p><strong>Thank you for having a look at my Website</strong></p>
-<p>If you want to know more about me, feel free to check out my <a href="https://www.linkedin.com/in/william-j-peters-2018/">Linkedin</a></p>
-<p>This will be further updated as we go along further</p>
+<p>Hello viewers,</p>
+<p><strong>This is for the Mini Project01 Fiscal Characteristics of Major US Public Transit Systems</strong></p>
+<p>I am going to start by including the answers at the start of the document and then later on provide the code below.</p>
+<p>3.1. MTA New York City Transit – 10,832,855,350</p>
+<p>3.2. Bus – 49,444,494,088</p>
+<p>3.3 Number of trips – 180,458,819</p>
+<p>3.5. Drop by 211,969,660</p>
+<p>4.1. The most popular month for 2023 was October by Unlinked Passenger trips of 645,736,546.</p>
+<p>4.2. The most popular mode for 2023 was Bus by Unlinked Passenger trips of 3,296,556,237. \</p>
+<p>4.3. The most travelled month for 2023 was August by Vehicle Revenue Miles of 422,002,435.</p>
+<p>4.4. The most travelled mode for 2023 was Bus by Vehicle Revenue Miles of 2,229,613,411</p>
+<p>6.1 MTA New York City Transit Heavy Rail with 1793073801 UPT</p>
+<p>6.2 Port Imperial Ferry Corporation, Ferry Boat with a Farebox Recovery of 1.43</p>
+<p>6.3 North Carolina State University, Bus with UPT/Expenses of 1.18</p>
+<p>6.4 Hampton Jitney Commuter Bus with a fares/UPT of 41.29</p>
+<p>6.5. Metropolitan Transportation Commission Vanpool with Expenses/VRM of 0.44</p>
+<p>6.6. Jacksonville Transportation Authority , Ferryboat of 157.70</p>
+<p>I decided to throw an additional fact for answer 4 as it was grouped together easier 2 x 2 solutions, And to answer the final question I would say that the Bus is the most efficient response as by my understanding it is about which mode of transport, is the best alternative to cars/driving and so the sheer volume of the bus is hard to ignore.</p>
+<p>Now for the real fun the coding component.</p>
+<p><strong>Preliminary Work to bring in the data</strong></p>
+<p>if(!require(“tidyverse”)) install.packages(“tidyverse”)</p>
+<section id="lets-start-with-fare-revenue" class="level1">
+<h1>Let’s start with Fare Revenue</h1>
+<p>library(tidyverse) if(!file.exists(“2022_fare_revenue.xlsx”)){ # This should work <em>in theory</em> but in practice it’s still a bit finicky # If it doesn’t work for you, download this file ‘by hand’ in your # browser and save it as “2022_fare_revenue.xlsx” in your project # directory.</p>
+<p>download.file(“http://www.transit.dot.gov/sites/fta.dot.gov/files/2024-04/2022%20Fare%20Revenue.xlsx”, destfile=“2022_fare_revenue.xlsx”, quiet=FALSE) } FARES &lt;- readxl::read_xlsx(“2022_fare_revenue.xlsx”) |&gt;</p>
+<p>select(-<code>State/Parent NTD ID</code>, -<code>Reporter Type</code>, -<code>Reporting Module</code>, -<code>TOS</code>, -<code>Passenger Paid Fares</code>, -<code>Organization Paid Fares</code>) |&gt;</p>
+<p>filter(<code>Expense Type</code> == “Funds Earned During Period”) |&gt;</p>
+<p>select(-<code>Expense Type</code>)</p>
+</section>
+<section id="next-expenses" class="level1">
+<h1>Next, expenses</h1>
+<p>if(!file.exists(“2022_expenses.csv”)){ # This should work <em>in theory</em> but in practice it’s still a bit finicky # If it doesn’t work for you, download this file ‘by hand’ in your # browser and save it as “2022_expenses.csv” in your project # directory.</p>
+<p>download.file(“https://data.transportation.gov/api/views/dkxx-zjd6/rows.csv?date=20231102&amp;accessType=DOWNLOAD&amp;bom=true&amp;format=true”, destfile=“2022_expenses.csv”, quiet=FALSE) }</p>
+<p>EXPENSES &lt;- readr::read_csv(“2022_expenses.csv”) |&gt;</p>
+<p>select(<code>NTD ID</code>, <code>Agency</code>, <code>Total</code>, <code>Mode</code>) |&gt;</p>
+<p>mutate(<code>NTD ID</code> = as.integer(<code>NTD ID</code>)) |&gt;</p>
+<p>rename(Expenses = Total) |&gt;</p>
+<p>group_by(<code>NTD ID</code>, <code>Mode</code>) |&gt;</p>
+<p>summarize(Expenses = sum(Expenses)) |&gt;</p>
+<p>ungroup()</p>
+<p>FINANCIALS &lt;- inner_join(FARES, EXPENSES, join_by(<code>NTD ID</code>, <code>Mode</code>))</p>
+</section>
+<section id="monthly-transit-numbers" class="level1">
+<h1>Monthly Transit Numbers</h1>
+<p>library(tidyverse) if(!file.exists(“ridership.xlsx”)){ # This should work <em>in theory</em> but in practice it’s still a bit finicky # If it doesn’t work for you, download this file ‘by hand’ in your # browser and save it as “ridership.xlsx” in your project # directory. download.file(“https://www.transit.dot.gov/sites/fta.dot.gov/files/2024-09/July%202024%20Complete%20Monthly%20Ridership%20%28with%20adjustments%20and%20estimates%29_240903.xlsx”, destfile=“ridership.xlsx”, quiet=FALSE) }</p>
+<p>TRIPS &lt;- readxl::read_xlsx(“ridership.xlsx”, sheet=“UPT”) |&gt;</p>
+<p>filter(<code>Mode/Type of Service Status</code> == “Active”) |&gt;</p>
+<p>select(-<code>Legacy NTD ID</code>, -<code>Reporter Type</code>, -<code>Mode/Type of Service Status</code>, -<code>UACE CD</code>, -<code>TOS</code>) |&gt;</p>
+<p>pivot_longer(-c(<code>NTD ID</code>:<code>3 Mode</code>), names_to=“month”, values_to=“UPT”) |&gt;</p>
+<p>drop_na() |&gt;</p>
+<p>mutate(month=my(month)) # Parse _m_onth _y_ear date specs MILES &lt;- readxl::read_xlsx(“ridership.xlsx”, sheet=“VRM”) |&gt;</p>
+<p>filter(<code>Mode/Type of Service Status</code> == “Active”) |&gt;</p>
+<p>select(-<code>Legacy NTD ID</code>, -<code>Reporter Type</code>, -<code>Mode/Type of Service Status</code>, -<code>UACE CD</code>, -<code>TOS</code>) |&gt;</p>
+<p>pivot_longer(-c(<code>NTD ID</code>:<code>3 Mode</code>), names_to=“month”, values_to=“VRM”) |&gt;</p>
+<p>drop_na() |&gt;</p>
+<p>group_by(<code>NTD ID</code>, <code>Agency</code>, <code>UZA Name</code>, <code>Mode</code>, <code>3 Mode</code>, month) |&gt;</p>
+<p>summarize(VRM = sum(VRM)) |&gt;</p>
+<p>ungroup() |&gt;</p>
+<p>mutate(month=my(month)) # Parse _m_onth _y_ear date specs</p>
+<p>USAGE &lt;- inner_join(TRIPS, MILES) |&gt;</p>
+<p>mutate(<code>NTD ID</code> = as.integer(<code>NTD ID</code>))</p>
+<p><strong>Task 1</strong></p>
+<p>USAGE &lt;- USAGE |&gt;</p>
+<p>rename(metro_area = <code>UZA Name</code>)</p>
+<p><strong>Task 2</strong></p>
+<p>USAGE&lt;- USAGE |&gt;</p>
+<p>mutate(Mode=case_when( Mode == “AR” ~ “Alaska Railroad”, Mode == “CB” ~ “Commuter Bus”, Mode == “CC” ~ “Cable Car”, Mode == “CR” ~ “Commuter Rail”, Mode == “DR” ~ “Demand Response”, Mode == “FB” ~ “Ferryboat”, Mode == “HR” ~ “Heavy Rail”, Mode == “IP” ~ “Inclined Plane”, Mode == “LR” ~ “Light Rail”, Mode == “MB” ~ “Bus”, Mode == “MG” ~ “Monorail and Automated Guideway modes”, Mode == “PB” ~ “Publico”, Mode == “RB” ~ “Bus Rapid Transit”, Mode == “SR” ~ “Streetcar Rail”, Mode == “TB” ~ “Trolleybus”, Mode == “TR” ~ “Aerial Tramways”, Mode == “VP” ~ “Vanpool”, Mode == “YR” ~ “Hybrid Rail”, TRUE ~ “Unknown”))</p>
+<p>FINANCIALS &lt;- FINANCIALS |&gt;</p>
+<p>mutate(Mode=case_when( Mode == “AR” ~ “Alaska Railroad”, Mode == “CB” ~ “Commuter Bus”, Mode == “CC” ~ “Cable Car”, Mode == “CR” ~ “Commuter Rail”, Mode == “DR” ~ “Demand Response”, Mode == “FB” ~ “Ferryboat”, Mode == “HR” ~ “Heavy Rail”, Mode == “IP” ~ “Inclined Plane”, Mode == “LR” ~ “Light Rail”, Mode == “MB” ~ “Bus”, Mode == “MG” ~ “Monorail and Automated Guideway modes”, Mode == “PB” ~ “Publico”, Mode == “RB” ~ “Bus Rapid Transit”, Mode == “SR” ~ “Streetcar Rail”, Mode == “TB” ~ “Trolleybus”, Mode == “TR” ~ “Aerial Tramways”, Mode == “VP” ~ “Vanpool”, Mode == “YR” ~ “Hybrid Rail”, TRUE ~ “Unknown”))</p>
+<p>sample_n(FINANCIALS, 1000) |&gt;</p>
+<p>DT::datatable()</p>
+<p>if(!require(“DT”)) install.packages(“DT”) library(DT) if(!require(“tidyverse”)) install.packages(“tidyverse”)</p>
+<p>sample_n(USAGE, 1000) |&gt;</p>
+<p>distinct(Agency) |&gt;</p>
+<p>DT::datatable()</p>
+<p>print(dist)</p>
+<p><strong>Task 3</strong></p>
+<p>Usage_Summary &lt;- USAGE |&gt;</p>
+<p>group_by(Agency) |&gt;</p>
+<p>summarize(total_vrm = sum(VRM, na.rm = TRUE)) |&gt;</p>
+<p>ungroup() |&gt;</p>
+<p>arrange(desc(total_vrm))</p>
+<p>Usage_Summary |&gt;</p>
+<p>DT::datatable()</p>
+<p>Usage_Mode_Summary &lt;- USAGE |&gt;</p>
+<p>group_by(Mode) |&gt;</p>
+<p>summarize(total_vrm = sum(VRM, na.rm = TRUE)) |&gt;</p>
+<p>ungroup() |&gt;</p>
+<p>arrange(desc(total_vrm))</p>
+<p>Usage_Mode_Summary |&gt;</p>
+<p>DT::datatable()</p>
+<p>Usage_Month &lt;- USAGE |&gt;</p>
+<p>filter (month == “2024-05-01”) |&gt;</p>
+<p>filter (Mode == “Heavy Rail”) |&gt;</p>
+<p>filter (Agency == “MTA New York City Transit”) |&gt;</p>
+<p>group_by(month) |&gt;</p>
+<p>summarize(total_vrm = sum(VRM, na.rm = TRUE),num_trips = sum(UPT, na.rm = TRUE))</p>
+<p>Usage_Month |&gt; DT::datatable()</p>
+<p>Longest_avg_trip &lt;- USAGE |&gt;</p>
+<p>filter (month == “2024-05-01”) |&gt;</p>
+<p>group_by(Mode) |&gt;</p>
+<p>summarize(total_vrm = sum(VRM, na.rm = TRUE),num_trips = sum(UPT, na.rm = TRUE),avg_trip = total_vrm/num_trips) |&gt;</p>
+<p>arrange(desc(avg_trip))</p>
+<p>Longest_avg_trip |&gt;</p>
+<p>DT::datatable()</p>
+<p>drop_ridership &lt;- USAGE |&gt;</p>
+<p>filter (Mode == “Heavy Rail”) |&gt;</p>
+<p>filter (Agency == “MTA New York City Transit”) |&gt;</p>
+<p>group_by(month) |&gt;</p>
+<p>summarize(num_trips = sum(UPT, na.rm = TRUE))</p>
+<p>drop_ridership |&gt;</p>
+<p>DT::datatable()</p>
+<p><strong>Task 4</strong></p>
+<p>most_popular_month &lt;- USAGE |&gt;</p>
+<p>filter (year(month) == 2023) |&gt;</p>
+<p>group_by(month) |&gt;</p>
+<p>summarize(num_trips = sum(UPT, na.rm = TRUE)) |&gt;</p>
+<p>arrange(desc(num_trips))</p>
+<p>most_popular_month |&gt; DT::datatable()</p>
+<p>most_popular_mode &lt;- USAGE |&gt;</p>
+<p>filter (year(month) == 2023) |&gt;</p>
+<p>group_by(Mode) |&gt;</p>
+<p>summarize(num_trips = sum(UPT, na.rm = TRUE)) |&gt;</p>
+<p>arrange(desc(num_trips))</p>
+<p>most_popular_mode |&gt;</p>
+<p>DT::datatable()</p>
+<p>most_travelled_month &lt;- USAGE |&gt;</p>
+<p>filter (year(month) == 2023) |&gt;</p>
+<p>group_by(month) |&gt;</p>
+<p>summarize(distance_travelled = sum(VRM, na.rm = TRUE)) |&gt;</p>
+<p>arrange(desc(distance_travelled))</p>
+<p>most_travelled_month |&gt;</p>
+<p>DT::datatable()</p>
+<p>most_travelled_mode &lt;- USAGE |&gt;</p>
+<p>filter (year(month) == 2023) |&gt;</p>
+<p>group_by(Mode) |&gt;</p>
+<p>summarize(distance_travelled = sum(VRM, na.rm = TRUE)) |&gt;</p>
+<p>arrange(desc(distance_travelled))</p>
+<p>most_travelled_mode |&gt;</p>
+<p>DT::datatable()</p>
+<p>##Grouped Usage## <strong>Task 5</strong></p>
+<p>USAGE_2022_ANNUAL &lt;- USAGE |&gt;</p>
+<p>filter(year(month) == 2022) |&gt;</p>
+<p>group_by(<code>NTD ID</code>,Agency,metro_area,Mode) |&gt;</p>
+<p>summarize(UPT = sum(UPT, na.rm = TRUE),VRM = sum(VRM, na.rm = TRUE)) |&gt;</p>
+<p>ungroup ()</p>
+<p>USAGE_2022_ANNUAL |&gt; DT::datatable()</p>
+<p>USAGE_AND_FINANCIALS &lt;- left_join(USAGE_2022_ANNUAL, FINANCIALS_2, join_by(<code>NTD ID</code>, Mode)) |&gt;</p>
+<p>drop_na()</p>
+<p>USAGE_AND_FINANCIALS |&gt;</p>
+<p>DT::datatable()</p>
+<p><strong>Task 6</strong></p>
+<p>Farebox1 &lt;- USAGE_AND_FINANCIALS |&gt;</p>
+<p>group_by(Agency,Mode) |&gt;</p>
+<p>summarize(UPT = sum(UPT, na.rm = TRUE),VRM = sum(VRM, na.rm = TRUE)) |&gt;</p>
+<p>filter(sum(UPT,na.rm = TRUE)&gt;400000) |&gt;</p>
+<p>ungroup () |&gt;</p>
+<p>arrange(desc(UPT))</p>
+<p>Farebox1 |&gt; DT::datatable()</p>
+<p>Farebox2 &lt;- USAGE_AND_FINANCIALS |&gt;</p>
+<p>group_by(Agency,Mode) |&gt;</p>
+<p>summarize(Expenses = sum(Expenses, na.rm = TRUE),<code>Total Fares</code> = sum(<code>Total Fares</code>, na.rm = TRUE),UPT = sum(UPT, na.rm = TRUE),<code>Farebox Recovery</code> = <code>Total Fares</code>/Expenses) |&gt;</p>
+<p>filter(UPT &gt; 400000) |&gt;</p>
+<p>ungroup () |&gt;</p>
+<p>arrange(desc(<code>Farebox Recovery</code>))</p>
+<p>Farebox2 |&gt;</p>
+<p>DT::datatable()</p>
+<p>Farebox3 &lt;- USAGE_AND_FINANCIALS |&gt;</p>
+<p>group_by(Agency,Mode) |&gt;</p>
+<p>summarize(Expenses = sum(Expenses, na.rm = TRUE),<code>Total Fares</code> = sum(<code>Total Fares</code>, na.rm = TRUE),UPT = sum(UPT, na.rm = TRUE),<code>Low_Expenses</code> = Expenses/UPT) |&gt;</p>
+<p>filter(UPT &gt; 400000) |&gt;</p>
+<p>ungroup () |&gt;</p>
+<p>arrange(<code>Low_Expenses</code>)</p>
+<p>Farebox3 |&gt; DT::datatable()</p>
+<p>Farebox4 &lt;- USAGE_AND_FINANCIALS |&gt;</p>
+<p>group_by(Agency,Mode) |&gt;</p>
+<p>summarize(Expenses = sum(Expenses, na.rm = TRUE),<code>Total Fares</code> = sum(<code>Total Fares</code>, na.rm = TRUE),UPT = sum(UPT, na.rm = TRUE),<code>High_Fares</code> = <code>Total Fares</code>/UPT) |&gt;</p>
+<p>filter(UPT &gt; 400000) |&gt;</p>
+<p>ungroup () |&gt; arrange(<code>High_Fares</code>)</p>
+<p>Farebox4 |&gt;</p>
+<p>DT::datatable()</p>
+<p>Farebox5 &lt;- USAGE_AND_FINANCIALS |&gt;</p>
+<p>group_by(Agency,Mode) |&gt;</p>
+<p>summarize(Expenses = sum(Expenses, na.rm = TRUE),VRM = sum(VRM, na.rm = TRUE),<code>Total Fares</code> = sum(<code>Total Fares</code>, na.rm = TRUE),UPT = sum(UPT, na.rm = TRUE),<code>Low_Expenses_VRM</code> = Expenses/VRM) |&gt;</p>
+<p>filter(UPT &gt; 400000) |&gt;</p>
+<p>ungroup () |&gt;</p>
+<p>arrange(<code>Low_Expenses_VRM</code>)</p>
+<p>Farebox5 |&gt; DT::datatable()</p>
+<p>Farebox6 &lt;- USAGE_AND_FINANCIALS |&gt;</p>
+<p>group_by(Agency,Mode) |&gt;</p>
+<p>summarize(Expenses = sum(Expenses, na.rm = TRUE),VRM = sum(VRM, na.rm = TRUE),<code>Total Fares</code> = sum(<code>Total Fares</code>, na.rm = TRUE),UPT = sum(UPT, na.rm = TRUE),<code>High_Fares_VRM</code> = <code>Total Fares</code>/VRM) |&gt;</p>
+<p>filter(UPT &gt; 400000) |&gt;</p>
+<p>ungroup () |&gt;</p>
+<p>arrange(desc(<code>High_Fares_VRM</code>))</p>
+<p>Farebox6 |&gt;</p>
+<p>DT::datatable()</p>
 
 
+</section>
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
