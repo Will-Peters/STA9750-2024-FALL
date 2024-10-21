@@ -6,11 +6,11 @@ website:
   title: "Will Peters STA9750-2024-FALL"
   description:
     Course Projects for STA 9750 at Baruch College
-  site-url: "https://Will-Peters.github.io/STA9750-2024-FALL/"
+  site-url: "https://will-peters.github.io/STA9750-2024-FALL/"
   navbar:
     background: primary
     search: false
-    
+
 format:
   html:
     theme: sandstone
