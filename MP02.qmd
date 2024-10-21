@@ -1,0 +1,459 @@
+---
+title: "Will Peters STA9750-2024-FALL MP02"
+author: "Will Peters"
+format: html
+editor: visual
+---
+
+```{r}
+library(scales) 
+library(stringr) 
+library(dplyr)
+library(tidyverse) 
+library(readr) 
+library(foreach)
+library(doParallel)
+library(ggplot2) 
+library(tidyr) 
+library(plotly) 
+library(knitr)
+
+```
+
+```{r}
+get_imdb_file <- function(fname){ 
+  BASE_URL <- "https://datasets.imdbws.com/" 
+  fname_ext <- paste0(fname, ".tsv.gz") 
+  if(!file.exists(fname_ext)){ 
+    FILE_URL <- paste0(BASE_URL, fname_ext) 
+    download.file(FILE_URL, 
+                  destfile = fname_ext) 
+  } 
+  as.data.frame(readr::read_tsv(fname_ext, lazy=FALSE)) 
+  }
+
+TITLE_RATINGS <- get_imdb_file("title.ratings") |> filter(numVotes >= 100)
+
+'TITLE_PRINCIPALS <- get_imdb_file("title.principals") |> semi_join(TITLE_RATINGS, join_by(tconst == tconst))'
+
+TITLE_PRINCIPALS <- as.data.frame(readr::read_csv("title_principals_small.csv", lazy=FALSE))
+
+TITLE_BASICS <- get_imdb_file("title.basics") 
+
+TITLE_BASICS <- TITLE_BASICS |> 
+  semi_join(TITLE_RATINGS, join_by(tconst == tconst))
+
+TITLE_CREW <- get_imdb_file("title.crew") 
+TITLE_CREW <- TITLE_CREW |> 
+  semi_join(TITLE_RATINGS, join_by(tconst == tconst))
+
+TITLE_EPISODES <- get_imdb_file("title.episode") 
+TITLE_EPISODES_1 <- TITLE_EPISODES |> 
+  semi_join(TITLE_RATINGS, join_by(tconst == tconst)) 
+TITLE_EPISODES_2 <- TITLE_EPISODES |> 
+  semi_join(TITLE_RATINGS, join_by(parentTconst == tconst))
+
+NAME_BASICS <- get_imdb_file("name.basics") 
+
+NAME_BASICS <- NAME_BASICS |> filter(str_count(knownForTitles,",") > 1)
+
+TITLE_EPISODES <- bind_rows(TITLE_EPISODES_1, TITLE_EPISODES_2) |> distinct() 
+
+'The purpose of the below lines is to remove the components of the TITLE_EPISODES as the bit of code above binds it into the data total' 
+rm(TITLE_EPISODES_1) 
+rm(TITLE_EPISODES_2)
+
+'Converts the birth year and death year from being treated as string/characters into a number' 
+NAME_BASICS <- NAME_BASICS |> 
+  mutate(birthYear = as.numeric(birthYear), 
+         deathYear = as.numeric(deathYear)) 
+'Task 1 Cleaning the columns and ensuring they are the correct type' 
+TITLE_BASICS <- TITLE_BASICS |> 
+  mutate(startYear = as.numeric(startYear), 
+         endYear = as.numeric(endYear),
+         runtimeMinutes = as.numeric(runtimeMinutes), 
+         isAdult = as.logical(isAdult))
+
+TITLE_EPISODES <- TITLE_EPISODES |> 
+  mutate(seasonNumber = as.numeric(seasonNumber), 
+         episodeNumber = as.numeric(episodeNumber))
+
+TITLE_PRINCIPALS <- TITLE_PRINCIPALS |> 
+  mutate(ordering = as.numeric(ordering))
+
+TITLE_RATINGS <- TITLE_RATINGS |> 
+  mutate(averageRating = as.numeric(averageRating), 
+         numVotes = as.numeric(numVotes))
+'Adding in a glimpse to check if treated as updated types' 
+'Task 2' 
+'1.' 
+print(TITLE_BASICS |> 
+        count(titleType, name = "Countrows"))
+
+```
+
+'Answer is in our data set there are 132,171 Movies, 29,964 TV Series and 156,592 Episodes'
+
+'2.'
+
+```{r}
+print (NAME_BASICS |> 
+         filter (is.na(deathYear),birthYear>1906) |> 
+         arrange(birthYear) |> 
+         rename(Name = primaryName, Year_of_Birth = birthYear,Year_of_Death = deathYear,Profession = primaryProfession) |>
+         select(-Profession,-nconst,-knownForTitles) |>
+         head(10)) 
+```
+
+The data is showing the list of 10 people as being the oldest living under the assumption that the death year NA is accurate, as the oldest living person was born in 1907. Overall inaccurate, it would require an additional data source to validate the information'
+
+'3.'
+
+```{r}
+print (TITLE_RATINGS |> 
+         filter(averageRating == 10.0,numVotes >= 200000) |> 
+         inner_join(TITLE_BASICS |> 
+              select(tconst,primaryTitle),join_by(tconst == tconst)) |>
+         rename(EpisodeTitle = primaryTitle) |> 
+         inner_join(TITLE_EPISODES |> 
+              select(tconst,parentTconst),join_by(tconst == tconst)) |>
+         inner_join(TITLE_BASICS |> 
+              select(tconst,primaryTitle),join_by(parentTconst == tconst)) |>  
+         rename(SeriesTitle = primaryTitle) |>
+         select(-tconst,-parentTconst) |>
+         rename(Rating = averageRating,Number_of_votes = numVotes,Episode=EpisodeTitle,Series=SeriesTitle))
+```
+
+'As you can see with a huge 230,000 votes it is the episode Ozymandis in the series Breaking Bad that received a perfect 10'
+
+'4.'
+
+```{r}
+print (NAME_BASICS |> 
+         filter(primaryName == "Mark Hamill") |> 
+         separate_longer_delim(knownForTitles,",") |> 
+         inner_join(TITLE_RATINGS,join_by(knownForTitles == tconst)) |> 
+         inner_join(TITLE_BASICS |> 
+               select(tconst,primaryTitle),join_by(knownForTitles == tconst)) |> 
+         arrange(desc(numVotes)) |>
+         select(-nconst,-birthYear,-deathYear,-primaryProfession,-knownForTitles) |>
+         rename(Name = primaryName))
+```
+
+'My argument for this would be the Starwars episodes are Mark Hamills primary claim to fame, specifically Episode, 4,5, 6 and 8 in that order'
+
+'5. '
+
+```{r}
+print(TITLE_EPISODES |> 
+        count(parentTconst, name = "Countrows") |> 
+        filter(Countrows >= 12) |> 
+        inner_join(TITLE_BASICS |> 
+               filter(titleType == "tvSeries")|> 
+               select (primaryTitle,tconst), join_by(parentTconst == tconst))|> 
+        inner_join(TITLE_RATINGS,join_by (parentTconst == tconst)) |> 
+        arrange(desc(averageRating)) |> 
+        select(-parentTconst) |>
+        rename(Number_of_episodes=Countrows,Tv_series=primaryTitle,Number_of_votes=numVotes)  |>
+        head(10))
+```
+
+'Tied for first would be Craft games, Jogandofoddaci, Chofli Hal, Prime time and Friday Five Sharp each having over 50 episodes but low vote counts'
+
+'6.'
+
+```{r}
+GRAPH_INFORMATION <- TITLE_BASICS |> 
+  filter(primaryTitle == "Happy Days") |> 
+  inner_join(TITLE_EPISODES,join_by (tconst == parentTconst)) |> 
+  inner_join (TITLE_RATINGS,join_by (tconst.y == tconst))
+
+print(ggplot(GRAPH_INFORMATION,aes(x = seasonNumber, y = averageRating)) + 
+  geom_point(color = "blue", size = 3) + 
+  geom_smooth(method = "lm", se = FALSE) + 
+  labs(title="Happy Days Seasonal performance", x = "Season", y = "Rating") + 
+  theme_classic())
+```
+
+'From this analysis we can see that the data tended to be on a seasonal decline, however my argument would be that Season 7,8 were the lowest points and then went out with better episodes in season 12'
+
+'Task 3 I am going to be saying the success metrics is the rounded average rating such that 5.4 is treated as 5 and 5.6 is treated as 6 added with the number of digits in the votes'
+
+```{r}
+TITLE_RATINGS <- TITLE_RATINGS |> 
+  mutate(Success_measure = round(averageRating) + ceiling(log10(abs(numVotes))))
+```
+
+'I have created a separe dataset for the list of successful movies with wider details to not show too much information'
+
+```{r}
+Successful_Movies <- TITLE_RATINGS |>
+  inner_join(TITLE_BASICS |> 
+               filter(titleType == "movie"), join_by(tconst == tconst)) |> 
+  arrange(desc(Success_measure),desc(averageRating))
+```
+
+'3.1'
+
+```{r}
+print(Successful_Movies |> 
+        select(-tconst,-titleType,-originalTitle,-isAdult,-endYear,-runtimeMinutes) |>
+        head(5))
+
+```
+
+'The top 5 movies were The Shawshank Redemption, The Godfather, The Godfather Part II, Schindlers List, The Lord of the Rings: The Return of the King all of which were iconic movies and box office successes'
+
+'3.2'
+
+```{r}
+print(TITLE_RATINGS |>
+        filter(numVotes >= 10000) |> 
+        inner_join(TITLE_BASICS |> 
+                     filter(titleType == "movie"), join_by(tconst == tconst)) |> 
+        arrange(Success_measure,averageRating) |> 
+        head(5))
+```
+
+'Given my metrics I came up with 321 Action (10210 Votes 1.0 rating success measure of 6),Reis (74155 votes,1 Average Rating, success measure of 6) and Cumali Ceber: Allah Seni Alsin (39456 votes, 1 average rating, success measure of 6)'
+
+'3.3'
+
+'For my actor I selected Brad Pitt and a score above 11'
+
+```{r}
+print(NAME_BASICS |> 
+        filter(primaryName == "Brad Pitt") |> 
+        separate_longer_delim(knownForTitles, ",") |> 
+        inner_join(TITLE_RATINGS |> 
+            filter(Success_measure >= "10"), join_by(knownForTitles == tconst)) |>
+        inner_join(TITLE_BASICS |> 
+            select(primaryTitle,tconst), join_by(knownForTitles == tconst)))
+
+```
+
+'Brad Pitt has been in 4 movies above 10 success points with the 4 being Fight Club, Moneyball, 12 Monkeys, Mr & Mrs Smith'
+
+'3.4'
+
+'The spot check validation is average Ratings above 9 and lowest success_measure (i.e.minimal view)'
+
+```{r}
+print(TITLE_RATINGS |> 
+        filter(Success_measure <= 12) |> 
+        filter(averageRating >= 9) |> 
+        inner_join(TITLE_BASICS |> 
+        filter(titleType == "movie"), join_by(tconst == tconst)) |> 
+        arrange(numVotes,Success_measure,desc(averageRating)) |> 
+        select(-tconst,-titleType,-originalTitle,-isAdult,-endYear,-runtimeMinutes,-genres) |>
+        rename(Release_Year = startYear, Title = primaryTitle) |>
+        head(3))
+```
+
+'The three movies were Aramudaitha Kombu, Carving the Divie and Pop Lock n Roll which I have never heard of and so did not perform well in terms of the success measure that I crafted'
+
+'3.5'
+
+'I think a numerical threshold for a project to be a success is if the success criteria is above 14 because that means that either the project got above 9.5 and 1000+ reviews or over a million reviews and was above a 6.5 average rating.'
+
+'Task 4'
+
+'for this one genre is aggregated with each title potentially having multiple genres to treat this we are going to include a table with each row being a genre per movie'
+
+'Had to also remove nulls'
+
+```{r}
+TITLE_BASICS_GENRE <- TITLE_BASICS |> 
+  separate_longer_delim(genres, ",") |>
+  filter(titleType == "movie") |> 
+  inner_join(TITLE_RATINGS |> 
+               select (Success_measure,tconst), join_by(tconst == tconst)) |>
+  filter(Success_measure >= 14) |> 
+  mutate(decade=round(startYear,-1))
+```
+
+```{r}
+genre_counts <- TITLE_BASICS_GENRE |> 
+  group_by(decade, genres) |> 
+  summarize(count = n())
+```
+
+'Added a filter to only show where count over 12 so to not over lap it'
+
+```{r}
+print(ggplotly(ggplot(genre_counts, aes(x = decade, y = count, fill = genres)) +
+           geom_bar(stat = "identity") + 
+           geom_text(aes(label = ifelse(count > 12, count, "")), position =                  position_stack(vjust = 0.5)) + 
+           labs(title = "Number of Movies by Genre and Decade") + 
+           xlab("Decade") + 
+           ylab("Number of Movies") + 
+           scale_x_continuous(breaks = seq(1920, 2020, by = 10), labels = paste0            (seq(1920, 2020, by = 10), "s")) + 
+           ggtitle(label = "Number of Movies by Genre and Decade", subtitle =                "Hover over a bar to see the genre")))
+
+
+```
+
+'Drama seems to be the most successful from 1920-2020'
+
+```{r}
+total_successes <- genre_counts |> 
+  group_by(decade) |> 
+  summarize(total_success = sum(count))
+```
+
+```{r}
+genre_counts_total <- genre_counts |> 
+  left_join(total_successes, by = "decade") |> 
+  mutate(percentage_of_count = count/total_success)
+```
+
+```{r}
+ggplotly(ggplot(genre_counts_total, aes(x = decade, y = percentage_of_count, color = genres,group = genres, text = paste0(round(percentage_of_count*100, 0), "%"))) +
+           geom_line() + 
+           geom_point() + 
+           labs(title = "Percentage of Total Successes by Genre and Year", x = "Year", y = "Percentage of Total Successes") + 
+           scale_x_continuous(breaks = seq(1920, 2020, by = 10), labels = paste0(seq(1920, 2020, by = 10), "s")) + 
+           scale_y_continuous(labels = scales::percent) + ggtitle(label = "Number of Movies by Genre and Decade", subtitle = "Hover over a bar to see the genre"))
+
+
+```
+
+'4.2' 'I would claim the genre that has had the most consistent success movies would be Drama movies always being more than 20% of the share of successful movies by decade' 'I would claim that the genre that fell out of favor the most is Romance, as in 1930 it had a 20% share of the success movies however that has dropped to 3% in the 2020s'
+
+'4.3 Drama has produced the most successes in 2010s and 2020s, primarily driven by the sheer volume although not having a bad success conversion of movies, the conversion tends to be middle of the pack when compared to other genres'
+
+```{r}
+kable(TITLE_BASICS |> 
+         separate_longer_delim(genres, ",") |> 
+         filter(titleType == "movie") |> 
+         inner_join(TITLE_RATINGS |> 
+         select (Success_measure,tconst), join_by(tconst == tconst)) |> 
+         mutate(Success=Success_measure >= 14) |> 
+         mutate(decade=round(startYear,-1)) |> 
+         filter(decade >= 2010) |> 
+         group_by(decade,genres) |> 
+         summarize(movies = n(), successful_movies = sum(Success==TRUE)) |>
+         mutate(percentage_success = percent(successful_movies/movies)) |>
+         filter(successful_movies != 0)) 
+
+
+```
+
+'4.4 Action as genre has become more popular for successful movies moving from 2% in the 1950s to 14% in the 2020s so has seen a considerable rise'
+
+'Overall I would personally target an adventure movie although not appearing anywhere in these metrics, it tends to have one of the highest percentage success across all movies above 2% of all adventure movies made'
+
+'Task 5'
+
+```{r}
+Actor_success<- Successful_Movies |>
+        filter(Success_measure >= 10) |>
+        separate_longer_delim(genres, ",")|>
+        filter(genres == "Adventure") |>
+        inner_join(NAME_BASICS |>
+                   separate_longer_delim(primaryProfession, ",")|>
+                   separate_longer_delim(knownForTitles, ",")|> 
+                   filter(primaryProfession == "director"|primaryProfession == "actor")|>
+                   select(knownForTitles,primaryName,birthYear,primaryProfession),
+                   join_by(tconst == knownForTitles)) |>
+        group_by(primaryName,primaryProfession,startYear,birthYear) |>
+        summarize(number_of_successful_movies = n(),Number_of_Votes = sum(numVotes,na.rm = FALSE),Average_rating = mean(averageRating)) |>
+        filter(!is.na(birthYear))|>
+        arrange(desc(number_of_successful_movies))
+
+
+print(n=800, Actor_success |>
+        group_by(primaryName,primaryProfession,birthYear) |>
+        summarize(Successes = sum(number_of_successful_movies,na.rm = FALSE))|>
+        arrange(desc(Successes)))
+
+print(n=100, Actor_success |>
+        group_by(primaryName,primaryProfession,birthYear) |>
+        summarize(Successes = sum(number_of_successful_movies,na.rm = FALSE))|>
+        filter(birthYear >= 1990) |>
+        arrange(desc(Successes)))
+
+```
+
+I will select James Cameron as the director given his experience in the industry and successful performance and Orlando Bloom who had successes in Lord of the rings and Liam Hemsworth who has had vast experience in the industry and an already created persona.
+
+```{r}
+ggplotly(ggplot(Actor_success |>
+                 mutate(Decade = floor(startYear/10)*10) |>
+                 group_by(Decade,primaryName) |>
+                 filter(primaryName == "James Cameron"|primaryName == "Orlando Bloom"|primaryName == "Liam Hemsworth") |>
+                 summarize(Number_of_Votes = mean(Number_of_Votes))
+               , aes(x = Decade, y = Number_of_Votes,group = primaryName,colour = primaryName)) +
+          geom_bar(stat="Identity") +
+          labs(title = "Number of Adventure Movies by Decade") +
+          xlab("Year") +
+          ylab("Number of Votes") +
+          scale_x_continuous(breaks = seq(1920, 2020, by = 10), labels = paste0(seq(1920, 2020, by = 10), "s")) +
+          ggtitle(label = "Number of Advenutre movies votes by Year",
+                  subtitle = "Hover over a bar to see the genre"))
+```
+
+Now is the perfect time for you three to team up and make an attempt to recapture the nostalgic market, during your peak times 2000s and 2010s, you were very successful particularly in the adventure category and have all had exposure to the movie category. The decline in votes is common across the industry and is waiting for a revival, similar to what you did back in 2000s.
+
+```{r}
+print(ggplotly(ggplot(TITLE_RATINGS|>
+                  inner_join(TITLE_BASICS |>
+                               separate_longer_delim(genres, ",")|>
+                               filter(genres == "Adventure") |>
+                               filter(titleType == "movie") |>
+                               select(tconst,startYear),join_by(tconst == tconst)) |>
+                  mutate(Decade = floor(startYear/10)*10) |>
+                  group_by(Decade) |>
+                  summarize(Number_of_Votes = mean(numVotes))
+                , aes(x = Decade, y = Number_of_Votes)) +
+           geom_line() +
+           labs(title = "Number of Adventure Movies by Decade") +
+           xlab("Year") +
+           ylab("Number of Votes") +
+           scale_x_continuous(breaks = seq(1920, 2020, by = 10), labels = paste0(seq(1920, 2020, by = 10), "s")) +
+           ggtitle(label = "Number of Advenutre movies votes by Year",
+                   subtitle = "Hover over a bar to see the genre")))
+
+```
+
+Task 6
+
+```{r}
+print(TITLE_RATINGS|>
+  inner_join(TITLE_BASICS |>
+               separate_longer_delim(genres, ",")|>
+               filter(genres == "Adventure") |>
+               filter(titleType == "movie") |>
+               select(tconst,startYear,primaryTitle),join_by(tconst == tconst)) |>
+    filter(numVotes>=100000) |>
+    filter(startYear <= 1999) |>
+    filter(startYear >= 1985) |>
+    select(-tconst) |>
+    filter(averageRating >=7.0))
+
+
+```
+
+The Movie I have selected to recreate would be to produce a Dead Man sequel, with anew cast however I think would be interesting for Jim Jarmusch as the original director to provide his creative feedback, and insight and Johnny Depp as the primary actor from the original to provide consultative services on it.
+
+Task 7
+
+'Pitch:
+
+Why This Project?
+
+-   Reviving a Classic: Dead Man remains a cult classic, and a sequel would tap into a passionate fanbase.
+
+-   Proven Talent: Orlando Bloom iconic performance and James Camerons visionary directing skills aswell as longevity being successful across decades offer a strong foundation. Particularly during the 2000's around when Dead Man first released.
+
+-   Rising Star: Liam Hemsworth, a proven action star, adds a contemporary appeal. Adventure Renaissance:
+
+-   Adventure films have enjoyed a resurgence and growth in popularity up around 200-500% over the past 30-40 years, with audiences craving escapism and thrilling narratives.
+
+-   Nostalgia and Innovation: The film can blend nostalgia for the original with modern storytelling techniques, creating a fresh and exciting experience.'
+
+Classic 90’s style teaser
+
+From director James Cameron, the visionary mind behind Avatar; and From actor Orlando Bloom, beloved star of Lord of the Rings; and From Liam Hemsworth, Hollywood icon of Adventure, Comes the timeless tail Dead Mans Return A story of Legacy and Redemption, The Changing West, and The Power of Friendship Coming soon to a theater near you.
+
+------------------------------------------------------------------------
