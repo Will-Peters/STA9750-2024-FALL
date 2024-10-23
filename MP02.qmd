@@ -379,18 +379,20 @@ Actor_success<- Successful_Movies |>
         arrange(desc(number_of_successful_movies))
 
 
-kable(n=100, Actor_success |>
+kable(Actor_success |>
         group_by(primaryName,primaryProfession,birthYear) |>
         summarize(Successes = sum(number_of_successful_movies,na.rm = FALSE))|>
         arrange(desc(Successes))|>
-        rename(Name = primaryName, Profession = primaryProfession))
+        rename(Name = primaryName, Profession = primaryProfession)|>
+        head(100),align = "l")
 
-kable(n=100, Actor_success |>
+kable(Actor_success |>
         group_by(primaryName,primaryProfession,birthYear) |>
         summarize(Successes = sum(number_of_successful_movies,na.rm = FALSE))|>
         filter(birthYear >= 1990) |>
         arrange(desc(Successes))|>
-        rename(Name = primaryName, Profession = primaryProfession))
+        rename(Name = primaryName, Profession = primaryProfession)|>
+        head(100),align = "l")
 
 ```
 
